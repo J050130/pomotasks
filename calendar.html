@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光阴簿 · 日程</title>
+<style>
+/* @import removed - Google Fonts blocked in China, too slow */
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: linear-gradient(160deg, #f8f5ff 0%, #eef4ff 30%, #f0f7fb 60%, #faf6ff 100%);
+  min-height: 100vh; padding: 32px 20px; color: #1a1333;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+.wrap { max-width:1300px; margin:0 auto; }
+.back-link {
+  display:inline-flex; align-items:center; gap:4px; margin-bottom:14px; font-size:13px;
+  color:#7c6ff7; text-decoration:none; font-weight:600; padding:6px 12px; border-radius:10px;
+  transition:background .15s;
+}
+.back-link:hover { background:rgba(124,111,247,0.08); }
+.card {
+  background: rgba(255,255,255,0.75); backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.85); border-radius: 24px;
+  padding: 28px 32px 24px;
+  box-shadow: 0 2px 40px rgba(100,80,180,0.06), 0 0 0 1px rgba(255,255,255,0.9) inset;
+  animation: fadeUp 0.5s ease-out;
+}
+.add-bar { display:flex; gap:10px; margin-bottom:22px; animation: fadeUp 0.5s ease-out 0.05s both; }
+.add-bar input, .add-bar select, .add-bar button {
+  padding:11px 16px; border:1.5px solid #e2dcf5; border-radius:14px;
+  background:#faf8ff; font-size:14px; outline:none; transition:all .2s;
+}
+.add-bar input:focus, .add-bar select:focus { border-color:#7c6ff7; box-shadow:0 0 0 3px rgba(124,111,247,0.08); background:#fff; }
+.add-bar .btn-add {
+  border:none; background:linear-gradient(135deg,#7c6ff7,#6c5ce7); color:#fff;
+  font-weight:700; cursor:pointer; padding:11px 24px; box-shadow:0 4px 14px rgba(108,92,231,0.25);
+  transition:all 0.2s cubic-bezier(.4,0,.2,1);
+}
+.add-bar .btn-add:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(108,92,231,0.35); }
+.add-bar .btn-add:active { transform:scale(0.96); }
+.cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; animation: fadeUp 0.5s ease-out 0.1s both; }
+.cal-header h1 { font-size:22px; font-weight:800; color:#2d1f4e; }
+.cal-nav { display:flex; gap:6px; align-items:center; }
+.cal-nav button {
+  width:34px; height:34px; border:none; border-radius:10px; cursor:pointer;
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s cubic-bezier(.4,0,.2,1); color:#7c6ff7; background:transparent;
+}
+.cal-nav button:hover { background:rgba(124,111,247,0.1); }
+.cal-nav button:active { transform:scale(0.92); }
+.cal-nav .nav-label { font-size:14px; font-weight:600; color:#555; min-width:110px; text-align:center; user-select:none; }
+.cal-nav .btn-today { font-size:12px; font-weight:600; width:auto; padding:6px 12px; color:#888; border:1.5px solid #e8e0f5; border-radius:8px; }
+.cal-nav .btn-today:hover { background:#f8f5ff; color:#7c6ff7; border-color:#7c6ff7; }
+.day-headers { display:flex; margin-bottom:0; animation: fadeUp 0.5s ease-out 0.15s both; }
+.day-headers .time-gutter { width:44px; flex-shrink:0; }
+.day-hdr { flex:1; text-align:center; padding:8px 4px 10px; border-radius:12px 12px 0 0; transition:background .15s; }
+.day-hdr .dow { font-size:12px; font-weight:600; color:#a89cc4; }
+.day-hdr .dom {
+  font-size:22px; font-weight:700; color:#555; line-height:1.2;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:50%; margin-top:2px;
+}
+.day-hdr.today { background:rgba(124,111,247,0.06); }
+.day-hdr.today .dom { background:#7c6ff7; color:#fff; animation: todayGlow 3s ease-in-out infinite; }
+.day-hdr.weekend .dow { color:#c8bdd8; }
+.day-hdr.weekend .dom { color:#b8a8d8; }
+.cal-body { display:flex; position:relative; transition:opacity 0.2s; }
+.time-gutter { width:44px; flex-shrink:0; }
+.time-gutter div { height:96px; font-size:11px; color:#c8bdd8; text-align:right; padding-right:8px; line-height:1; position:relative; top:-11px; }
+.day-col { flex:1; position:relative; border-left:1px solid #f0eaf8; min-height:1632px; }
+.day-col:first-of-type { border-left:none; }
+.day-col.today { background:rgba(124,111,247,0.025); }
+.day-col.weekend { background:rgba(0,0,0,0.01); }
+.day-col .hour-line { height:96px; border-top:1px solid #f4f0fc; }
+.day-col .hour-line:nth-child(2n) { border-top-style:dashed; border-top-color:#ece6f6; }
+.now-line { position:absolute; left:0; right:0; height:2px; background:#ef4444; z-index:5; pointer-events:none; opacity:0.7; animation: nowPulse 2s ease-in-out infinite; }
+.now-line::before { content:''; position:absolute; left:-5px; top:-4px; width:10px; height:10px; border-radius:50%; background:#ef4444; }
+.block {
+  position:absolute; border-radius:10px; padding:6px 10px; overflow:hidden;
+  cursor:pointer; z-index:2; border-left:3px solid;
+  animation: blockIn 0.35s ease-out; transform-origin:top center;
+  transition:transform 0.2s cubic-bezier(.4,0,.2,1), filter 0.2s, box-shadow 0.2s;
+}
+.block:hover { transform:scaleX(1.03) translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.08); z-index:10; }
+.block .b-name { font-size:13px; font-weight:700; word-break:break-all; line-height:1.3; }
+.block .b-time { font-size:11px; opacity:0.65; }
+.block.done { opacity:0.55; }
+.block.done .b-name { text-decoration:line-through; }
+.empty-hint { text-align:center; color:#d5cee0; padding:60px; font-size:14px; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:100; display:flex; align-items:center; justify-content:center; animation: fadeIn 0.2s; }
+.modal-box { background:#fff; border-radius:18px; padding:28px 32px; min-width:480px; max-width:640px; box-shadow:0 20px 60px rgba(0,0,0,0.18); }
+.modal-box h3 { font-size:18px; color:#2d1f4e; margin-bottom:14px; }
+.modal-box textarea { width:100%; height:120px; padding:12px 16px; border:1.5px solid #e2dcf5; border-radius:12px; font-size:15px; font-family:inherit; resize:vertical; outline:none; background:#faf8ff; }
+.modal-box textarea:focus { border-color:#7c6ff7; }
+.modal-btns { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+.modal-btns button { padding:8px 20px; border:none; border-radius:10px; font-size:14px; cursor:pointer; font-weight:600; }
+.modal-btn-ok { background:#7c6ff7; color:#fff; }
+.modal-btn-cancel { background:#f3f0fa; color:#888; }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes blockIn { from { opacity:0; transform:scaleY(0.8); } to { opacity:1; transform:scaleY(1); } }
+@keyframes nowPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+@keyframes todayGlow { 0%,100% { box-shadow:0 0 0 0 rgba(124,111,247,0.3); } 50% { box-shadow:0 0 0 6px rgba(124,111,247,0); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="back-link" href="index.html">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>回到光阴簿
+</a>
+<div class="card">
+  <div class="add-bar" id="addBar">
+    <input id="sn" type="text" placeholder="添加日程，回车确认..." style="flex:1;">
+    <input id="ss" type="datetime-local" style="width:210px;">
+    <input id="sd" type="number" value="60" min="0" max="480" style="width:72px; text-align:center;">
+    <span style="font-size:12px;color:#a89cc4;align-self:center;">分</span>
+    <select id="sc" style="padding:10px 12px; border:1.5px solid #e2dcf5; border-radius:14px; background:#faf8ff; font-size:13px; outline:none; color:#2d1f4e;">
+      <option value="daily">日常</option>
+      <option value="important">重要</option>
+      <option value="flexible">弹性</option>
+    </select>
+    <button class="btn-add" onclick="addSched()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="vertical-align:-3px;margin-right:3px;"><path d="M12 5v14M5 12h14"/></svg>添加
+    </button>
+  </div>
+  <div class="cal-header">
+    <h1>📅 日程</h1>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button id="toggleAdd" onclick="const b=document.getElementById('addBar');b.style.display=b.style.display==='none'?'flex':'none';this.textContent=b.style.display==='none'?'＋':'－';" style="font-size:18px;border:none;background:none;color:#a89cc4;cursor:pointer;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;" title="展开/收起">－</button>
+      <div class="cal-nav">
+        <button onclick="changeWeek(-1)" title="上一周"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <span class="nav-label" id="weekLabel"></span>
+        <button onclick="changeWeek(1)" title="下一周"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+        <button class="btn-today" onclick="weekOffset=0;renderCal();"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:3px;"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>今天</button>
+      </div>
+    </div>
+  </div>
+  <div class="day-headers" id="dayHeaders"></div>
+  <div class="cal-body" id="calBody"></div>
+<div class="modal-overlay" id="noteModal" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <h3 id="modalTitle">编辑备注</h3>
+    <textarea id="modalText" placeholder="输入备注..."></textarea>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeModal()">取消</button>
+      <button class="modal-btn-ok" onclick="saveModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" style="display:none;" onclick="if(event.target===this)closeEdit()">
+  <div class="modal-box">
+    <h3>✏️ 编辑日程</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input id="editName" placeholder="名称" style="padding:10px 14px;border:1.5px solid #e2dcf5;border-radius:12px;font-size:14px;outline:none;background:#faf8ff;">
+      <input id="editStart" type="datetime-local" style="padding:10px 14px;border:1.5px solid #e2dcf5;border-radius:12px;font-size:14px;outline:none;background:#faf8ff;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="editDur" type="number" min="0" max="480" style="width:80px;padding:10px;border:1.5px solid #e2dcf5;border-radius:12px;font-size:14px;text-align:center;outline:none;background:#faf8ff;">
+        <span style="font-size:13px;color:#a89cc4;">分钟</span>
+        <select id="editCat" style="padding:10px 12px;border:1.5px solid #e2dcf5;border-radius:12px;font-size:13px;outline:none;background:#faf8ff;color:#2d1f4e;">
+          <option value="daily">日常</option><option value="important">重要</option><option value="flexible">弹性</option>
+        </select>
+      </div>
+      <textarea id="editNote" placeholder="备注" style="height:60px;padding:10px 14px;border:1.5px solid #e2dcf5;border-radius:12px;font-size:14px;font-family:inherit;resize:vertical;outline:none;background:#faf8ff;"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeEdit()">取消</button>
+      <button class="modal-btn-ok" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+const COLORS = ['#7c6ff7','#f59e0b','#22c55e','#ef4444','#3b82f6','#ec4899','#14b8a6','#f97316','#8b5cf6','#06b6d4'];
+const CAT_COLORS = { important:'#ef4444', daily:'#7c6ff7', flexible:'#22c55e' };
+let colorIdx = {}, weekOffset = 0;
+
+function getColor(k) { if(!colorIdx[k]) colorIdx[k]=COLORS[Object.keys(colorIdx).length%COLORS.length]; return colorIdx[k]; }
+function catColor(s) { return CAT_COLORS[s.cat]||CAT_COLORS.daily; }
+function changeWeek(n) { weekOffset+=n; renderCal(); }
+function weekStart() {
+  const now=new Date(), day=now.getDay();
+  const mon=new Date(now); mon.setDate(now.getDate()-(day===0?6:day-1)+weekOffset*7);
+  mon.setHours(0,0,0,0); return mon;
+}
+
+function addSched() {
+  const name=document.getElementById('sn').value.trim();
+  if(!name) return;
+  if(name.length>100){ toast('⚠ 任务名不能超过100个字'); return; }
+  scheduled.push({ name, start:document.getElementById('ss').value, dur:parseInt(document.getElementById('sd').value)||60, done:false, cat:document.getElementById('sc').value });
+  document.getElementById('sn').value='';
+  logAction('⏰ 添加日程 ['+name+']');
+  saveData(); renderCal(); document.getElementById('sn').focus();
+}
+
+function toggleDone(idx){
+  const s=scheduled[idx];
+  s.done=!s.done;
+  if(s.done) logAction('✅ 完成日程 ['+s.name+']');
+  saveData(); renderCal();
+}
+function removeSched(idx){
+  const s=scheduled[idx];
+  logAction('🗑 删除日程 ['+s.name+']');
+  scheduled.splice(idx,1); saveData(); renderCal();
+}
+let editingIdx = null;
+function editNote(idx){
+  editingIdx=idx;
+  const s=scheduled[idx];
+  document.getElementById('modalTitle').textContent='📝 '+s.name;
+  document.getElementById('modalText').value=s.note||'';
+  document.getElementById('noteModal').style.display='flex';
+  document.getElementById('modalText').focus();
+}
+function closeModal(){ document.getElementById('noteModal').style.display='none'; editingIdx=null; }
+let editIdx = null;
+function openEdit(idx){
+  editIdx = idx;
+  const s = scheduled[idx];
+  document.getElementById('editName').value = s.name;
+  document.getElementById('editStart').value = s.start || '';
+  document.getElementById('editDur').value = s.dur;
+  document.getElementById('editCat').value = s.cat || 'daily';
+  document.getElementById('editNote').value = s.note || '';
+  document.getElementById('editModal').style.display = 'flex';
+}
+function closeEdit(){ document.getElementById('editModal').style.display='none'; editIdx=null; }
+function saveEdit(){
+  if (editIdx===null) return;
+  const s = scheduled[editIdx];
+  s.name = document.getElementById('editName').value.trim() || s.name;
+  s.start = document.getElementById('editStart').value;
+  s.dur = parseInt(document.getElementById('editDur').value) || s.dur;
+  s.cat = document.getElementById('editCat').value;
+  s.note = document.getElementById('editNote').value.trim();
+  closeEdit();
+  logAction('✏ 编辑日程 ['+s.name+']');
+  saveData(); renderCal();
+}
+function saveModal(){
+  if(editingIdx===null) return;
+  const s=scheduled[editingIdx];
+  const note=document.getElementById('modalText').value.trim();
+  s.note=note; closeModal();
+  logAction('📝 备注 ['+s.name+'] '+(note||'清空'));
+  saveData(); renderCal();
+}
+function cycleCat(idx){
+  const s=scheduled[idx];
+  const cats=['important','daily','flexible'];
+  const i=cats.indexOf(s.cat||'daily');
+  s.cat=cats[(i+1)%3];
+  const labels={important:'重要',daily:'日常',flexible:'弹性'};
+  logAction('🏷 分类 ['+s.name+'] → '+labels[s.cat]);
+  saveData(); renderCal();
+}
+
+function renderCal() {
+  const body=document.getElementById('calBody');
+  const ws=weekStart();
+  const today=new Date(); today.setHours(0,0,0,0);
+  const we=new Date(ws); we.setDate(we.getDate()+6);
+  document.getElementById('weekLabel').textContent=(ws.getMonth()+1)+'/'+ws.getDate()+' - '+(we.getMonth()+1)+'/'+we.getDate();
+  const dayNames=['周一','周二','周三','周四','周五','周六','周日'];
+  let hdrHTML='<div class="time-gutter"></div>';
+  for(let d=0;d<7;d++){
+    const date=new Date(ws); date.setDate(ws.getDate()+d);
+    const isToday=date.getTime()===today.getTime();
+    const isWeekend=d>=5;
+    hdrHTML+=`<div class="day-hdr${isToday?' today':''}${isWeekend?' weekend':''}" style="flex:1;"><div class="dow">${dayNames[d]}</div><div class="dom">${date.getDate()}</div></div>`;
+  }
+  document.getElementById('dayHeaders').innerHTML=hdrHTML;
+
+  let SH=6,EH=23;
+  const allStarts=[], allEnds=[];
+  for(let d=0;d<7;d++){
+    const date=new Date(ws); date.setDate(ws.getDate()+d);
+    const ds=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+    (scheduled.filter(s=>s.start&&s.start.slice(0,10)===ds)).forEach(s=>{
+      allStarts.push(new Date(s.start).getHours());
+      allEnds.push(Math.ceil((new Date(s.start).getTime()+s.dur*60000)/3600000));
+    });
+  }
+  const nowH=new Date().getHours(); allStarts.push(nowH); allEnds.push(nowH);
+  if(allStarts.length>0){
+    SH=Math.max(0,Math.min(...allStarts)-1);
+    EH=Math.min(24,Math.max(...allEnds)+1);
+    if(EH-SH<10){ SH=Math.max(0,SH-2); EH=Math.min(24,EH+2); }
+  }
+  const PX=96;
+  let bodyHTML='<div class="time-gutter">';
+  for(let h=SH;h<=EH;h++) bodyHTML+=`<div>${h}:00</div>`;
+  bodyHTML+='</div>';
+  const now=new Date();
+  const nowMin=(now.getHours()-SH)*60+now.getMinutes();
+  const nowTop=nowMin/60*PX;
+
+  for(let d=0;d<7;d++){
+    const date=new Date(ws); date.setDate(ws.getDate()+d);
+    const isToday=date.getTime()===today.getTime();
+    const isWeekend=d>=5;
+    const ds=date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+    const tasks=scheduled.filter(s=>s.start&&s.start.slice(0,10)===ds);
+
+    // Overlap clusters
+    tasks.sort((a,b)=>a.start.localeCompare(b.start));
+    const clusters=[];
+    tasks.forEach(s=>{
+      const st=new Date(s.start).getTime();
+      const end=st+s.dur*60000;
+      let added=false;
+      for(const cl of clusters){ if(cl.maxEnd>st){ cl.tasks.push(s); cl.maxEnd=Math.max(cl.maxEnd,end); added=true; break; } }
+      if(!added) clusters.push({ tasks:[s], maxEnd:end });
+    });
+    const laneMap=new Map();
+    clusters.forEach(cl=>{
+      const lanes=[];
+      cl.tasks.forEach(s=>{
+        const st=new Date(s.start).getTime();
+        let lane=0; while(lanes[lane]&&lanes[lane]>st) lane++;
+        lanes[lane]=st+s.dur*60000;
+        laneMap.set(s,{lane,total:Math.max(1,lanes.length)});
+      });
+    });
+
+    bodyHTML+=`<div class="day-col${isToday?' today':''}${isWeekend?' weekend':''}" style="flex:1;">`;
+    for(let h=SH;h<=EH;h++) bodyHTML+='<div class="hour-line"></div>';
+    if(isToday&&now.getHours()>=SH&&now.getHours()<=EH) bodyHTML+=`<div class="now-line" style="top:${nowTop}px;"></div>`;
+
+    tasks.forEach(s=>{
+      const idx=scheduled.indexOf(s);
+      const start=new Date(s.start);
+      const end=new Date(start.getTime()+s.dur*60000);
+      const top=((start.getHours()-SH)*60+start.getMinutes())/60*PX;
+      const h=s.dur/60*PX;
+      const isDDL=s.dur===0;
+      const dh=isDDL?20:Math.max(36,Math.round(h));
+      const isShort=!isDDL&&h<44;
+      const tStr=start.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+      const ts=isDDL?'⏰ '+tStr:tStr+' - '+end.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+      const li=laneMap.get(s)||{lane:0,total:1};
+      const lw=100/li.total, left=li.lane*lw;
+      const cc=catColor(s);
+
+      if(isDDL){
+        bodyHTML+=`<div class="block" style="top:${top-10}px;height:20px;left:${left}%;width:${lw-1}%;background:${cc}20;border-left:3px solid ${cc};border-radius:4px;"
+          title="DDL · 单击完成 · 右键删除&#10;${s.name}&#10;⏰ ${tStr}${s.note?'&#10;📝 '+s.note:''}"
+          onclick="openEdit(${idx})" oncontextmenu="event.preventDefault();if(confirm('删除 ${s.name}？'))removeSched(${idx})">
+          <div style="font-size:10px;font-weight:700;white-space:nowrap;">
+            <span onclick="event.stopPropagation();cycleCat(${idx})" title="切换分类" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${cc};margin-right:4px;vertical-align:middle;cursor:pointer;"></span>
+            ⏰ ${s.name}
+            <span onclick="event.stopPropagation();editNote(${idx})" title="编辑备注" style="cursor:pointer;font-size:11px;${s.note?'opacity:1':'opacity:0.4'};margin-left:2px;">📝</span>
+          </div>
+        </div>`;
+      } else {
+        bodyHTML+=`<div class="block${s.done?' done':''}" style="top:${top}px;height:${dh}px;left:${left}%;width:${lw-1}%;background:${cc}12;border-left-color:${cc};"
+          title="单击编辑备注 · 右键删除&#10;${s.name}&#10;${ts} (${s.dur}分钟)${s.note?'&#10;📝 '+s.note:''}"
+          onclick="openEdit(${idx})" oncontextmenu="event.preventDefault();if(confirm('删除 ${s.name}？'))removeSched(${idx})">
+          <div class="b-name" style="${isShort?'font-size:11px;':''}">
+            <span onclick="event.stopPropagation();cycleCat(${idx})" title="切换分类" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cc};margin-right:4px;vertical-align:middle;cursor:pointer;"></span>
+            ${s.name}
+            <span onclick="event.stopPropagation();editNote(${idx})" title="编辑备注" style="cursor:pointer;font-size:13px;${s.note?'opacity:1':'opacity:0.4'};margin-left:2px;">📝</span>
+          </div>
+          ${isShort?'':'<div class="b-time">'+ts+'</div>'}
+          ${s.note?'<div class="b-time" style="opacity:0.7;font-size:11px;">'+s.note+'</div>':''}
+        </div>`;
+      }
+    });
+    bodyHTML+='</div>';
+  }
+  document.getElementById('calBody').innerHTML=bodyHTML;
+}
+
+document.getElementById('sn').addEventListener('keydown',e=>{if(e.key==='Enter')addSched();});
+renderCal();
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光阴簿</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <!-- 番茄钟 -->
+  <div class="timer-card">
+    <div class="timer-inner">
+      <div class="timer-pick">
+        <select id="taskSelect" onchange="onPickTask()">
+          <option value="">⋯ 选择要做的任务 ⋯</option>
+        </select>
+      </div>
+      <div class="timer-label" id="phaseLabel">准备就绪</div>
+      <div class="timer-time" id="timeDisplay">25:00</div>
+      <div id="pausedTag"></div>
+      <div class="timer-bar-wrap">
+        <div class="timer-bar" id="timerBar" style="width:0%; background:#7c6ff7;"></div>
+      </div>
+      <div class="timer-info" id="timerInfo">Work 25 分钟 / Break 5 分钟 · 第 0 轮</div>
+      <div class="timer-btns">
+        <button class="btn-start" id="btnStart" onclick="startTimer()">开始工作</button>
+        <button class="btn-pause" id="btnPause" onclick="togglePause()" disabled>暂停</button>
+        <button class="btn-quit" onclick="quitTimer()">结束</button>
+      </div>
+      <div class="settings">
+        <label>☀ 工作 <input id="workMin" type="number" value="25" min="1" max="120"> 分</label>
+        <label>☕ 休息 <input id="breakMin" type="number" value="5" min="1" max="60"> 分</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 任务列表 -->
+  <div class="task-card" style="margin-bottom:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h2>📋 任务列表</h2>
+        <div style="display:flex; gap:6px;">
+          <button onclick="pickDataFile()" id="btnSetupStorage" style="font-size:11px; color:#fff; background:#7c6ff7; border:none; padding:4px 10px; border-radius:8px; cursor:pointer; font-weight:600;">💾 本地存储</button>
+          <button onclick="document.getElementById('importFile').click()" style="font-size:11px; color:#f59e0b; background:#fff; border:1.5px solid #f59e0b; padding:4px 10px; border-radius:8px; cursor:pointer; font-weight:600;">📥 恢复</button>
+          <input id="importFile" type="file" accept=".json" onchange="importAll(this)" style="display:none;">
+          <button onclick="toggleMergeMode()" id="btnMergeMode" style="font-size:11px; color:#888; background:#fff; border:1.5px solid #e0d8f0; padding:4px 10px; border-radius:8px; cursor:pointer; font-weight:600;">🔗 合并</button>
+          <a href="calendar.html" style="font-size:11px; color:#7c6ff7; text-decoration:none; font-weight:600; padding:4px 10px; border:1.5px solid #7c6ff7; border-radius:8px;">📅 日程</a>
+          <a href="done.html" style="font-size:11px; color:#7c6ff7; text-decoration:none; font-weight:600; padding:4px 10px; border:1.5px solid #7c6ff7; border-radius:8px;">🏆 荣誉墙</a>
+          <a href="stats.html" style="font-size:11px; color:#7c6ff7; text-decoration:none; font-weight:600; padding:4px 10px; border:1.5px solid #7c6ff7; border-radius:8px;">📊 统计</a>
+        </div>
+      </div>
+      <div class="add-row">
+        <input id="input" type="text" placeholder="添加任务，回车确认..." autofocus>
+        <input id="inputDdl" type="datetime-local" title="截止时间（可留空）">
+        <select id="taskCat" style="padding:10px 12px; border:1.5px solid #e0d8f0; border-radius:12px; background:#faf8ff; font-size:13px; outline:none; color:#2d1f4e;">
+          <option value="daily">日常</option>
+          <option value="important">重要</option>
+          <option value="flexible">弹性</option>
+        </select>
+        <input id="inputEst" type="number" min="0" max="1080" value="0" title="预估分钟" style="width:58px; padding:10px 8px; border:1.5px solid #e0d8f0; border-radius:12px; background:#faf8ff; font-size:13px; text-align:center; outline:none;">
+        <span style="font-size:12px;color:#a89cc4;align-self:center;">分</span>
+        <button onclick="addTask(-1)">添加</button>
+      </div>
+      <div id="list"></div>
+      <div id="mergeBar" style="display:none;text-align:center;padding:8px;margin-top:8px;">
+        <button onclick="mergeTasks()" style="padding:8px 18px;border:none;border-radius:10px;background:#7c6ff7;color:#fff;font-size:13px;cursor:pointer;font-weight:700;">合并选中任务</button>
+        <button onclick="clearMergeSelect()" style="padding:8px 14px;border:none;border-radius:10px;background:#f3f0fa;color:#888;font-size:13px;cursor:pointer;margin-left:6px;">取消</button>
+      </div>
+      <div class="sub-hint">点 ⊕ 往下拆子任务 · wt 设权重 · 大任务进度加权自动算</div>
+
+      <!-- 操作日志 -->
+      <div style="margin-top:16px; border-top:1px solid #f0eaf8; padding-top:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:700; color:#a89cc4; cursor:pointer;"
+            onclick="const l=document.getElementById('logList');l.style.display=l.style.display==='none'?'block':'none';">
+            📝 操作日志
+          </span>
+          <div style="display:flex; gap:8px;">
+            <button onclick="downloadLog()"
+              style="font-size:11px; border:1.5px solid #7c6ff7; background:#fff; color:#7c6ff7;
+              padding:3px 10px; border-radius:6px; cursor:pointer; font-weight:600;">⬇ 导出 MD</button>
+            <button onclick="sessionLog=[];localStorage.setItem('pomotasks_log','[]');renderLog();"
+              style="font-size:11px; border:none; background:none; color:#c8bdd8; cursor:pointer;">清空</button>
+          </div>
+        </div>
+        <div id="logList" style="display:none; max-height:200px; overflow-y:auto; font-size:12px; color:#888;">
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="taskNoteModal" style="display:none;" onclick="if(event.target===this)closeTaskNote()">
+  <div class="modal-box">
+    <h3 id="taskNoteTitle">编辑备注</h3>
+    <textarea id="taskNoteText" placeholder="输入备注..."></textarea>
+    <div class="modal-btns">
+      <button class="modal-btn-cancel" onclick="closeTaskNote()">取消</button>
+      <button class="modal-btn-ok" onclick="saveTaskNote()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
